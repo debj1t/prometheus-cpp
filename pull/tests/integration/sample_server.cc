@@ -16,8 +16,13 @@ int main() {
   using namespace prometheus;
 
   // create a http server running on port 8080
-  Exposer exposer{"127.0.0.1:8080"};
+  std::vector<std::wstring> Urls;
 
+  wprintf(L"Starting server");
+  Urls.push_back(L"http://127.0.0.1:8080/metrics");
+  Exposer exposer(Urls);
+
+  wprintf(L"Exposer Initialized");
   // create a metrics registry
   // @note it's the users responsibility to keep the object alive
   auto registry = std::make_shared<Registry>();
@@ -27,6 +32,7 @@ int main() {
   //
   // @note please follow the metric-naming best-practices:
   // https://prometheus.io/docs/practices/naming/
+  wprintf(L"Building counter");
   auto& packet_counter = BuildCounter()
                              .Name("observed_packets_total")
                              .Help("Number of observed packets")
@@ -56,6 +62,7 @@ int main() {
                            .Register(*registry);
   version_info.Add({{"prometheus", "1.0"}});
   // ask the exposer to scrape the registry on incoming HTTP requests
+  wprintf(L"Registering collectable");
   exposer.RegisterCollectable(registry);
 
   for (;;) {

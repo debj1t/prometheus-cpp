@@ -8,23 +8,23 @@ target_link_libraries(sample_server
     ${PROJECT_NAME}::pull
 )
 
-add_executable(sample_server_multi
-  sample_server_multi.cc
-)
+#add_executable(sample_server_multi
+#  sample_server_multi.cc
+#)
+#
+#target_link_libraries(sample_server_multi
+#  PRIVATE
+#    ${PROJECT_NAME}::pull
+#)
 
-target_link_libraries(sample_server_multi
-  PRIVATE
-    ${PROJECT_NAME}::pull
-)
+#add_executable(sample_server_auth
+#  sample_server_auth.cc
+#)
 
-add_executable(sample_server_auth
-  sample_server_auth.cc
-)
-
-target_link_libraries(sample_server_auth
-  PRIVATE
-     ${PROJECT_NAME}::pull
-)
+#target_link_libraries(sample_server_auth
+#  PRIVATE
+#     ${PROJECT_NAME}::pull
+#)
 
 find_package(CURL)
 

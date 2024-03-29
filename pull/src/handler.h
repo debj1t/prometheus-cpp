@@ -10,17 +10,19 @@
 #include "prometheus/family.h"
 #include "prometheus/registry.h"
 #include "prometheus/summary.h"
+#include "prometheus/http_server.h"
 
 namespace prometheus {
 namespace detail {
-class MetricsHandler : public CivetHandler {
+class MetricsHandler : public RequestHandler {
  public:
   explicit MetricsHandler(Registry& registry);
 
   void RegisterCollectable(const std::weak_ptr<Collectable>& collectable);
   void RemoveCollectable(const std::weak_ptr<Collectable>& collectable);
 
-  bool handleGet(CivetServer* server, struct mg_connection* conn) override;
+  //bool handleGet() override;
+  ULONG handleGet(HANDLE hReqQueue, PHTTP_REQUEST pRequest) override;
 
  private:
   static void CleanupStalePointers(

@@ -6,16 +6,17 @@
 
 #include "CivetServer.h"
 #include "basic_auth.h"
+#include "handler.h"
 #include "prometheus/collectable.h"
 #include "prometheus/registry.h"
+#include "prometheus/http_server.h"
 
 namespace prometheus {
 namespace detail {
-class MetricsHandler;
 
 class Endpoint {
  public:
-  explicit Endpoint(CivetServer& server, std::string uri);
+  explicit Endpoint(HttpServer& server, std::wstring uri);
   ~Endpoint();
 
   Endpoint(const Endpoint&) = delete;
@@ -24,16 +25,16 @@ class Endpoint {
   Endpoint& operator=(Endpoint&&) = delete;
 
   void RegisterCollectable(const std::weak_ptr<Collectable>& collectable);
-  void RegisterAuth(
-      std::function<bool(const std::string&, const std::string&)> authCB,
-      const std::string& realm);
+//  void RegisterAuth(
+//      std::function<bool(const std::string&, const std::string&)> authCB,
+//      const std::string& realm);
   void RemoveCollectable(const std::weak_ptr<Collectable>& collectable);
 
-  const std::string& GetURI() const;
+  const std::wstring& GetURI() const;
 
  private:
-  CivetServer& server_;
-  const std::string uri_;
+  HttpServer& server_;
+  const std::wstring uri_;
   // registry for "meta" metrics about the endpoint itself
   std::shared_ptr<Registry> endpoint_registry_;
   std::unique_ptr<MetricsHandler> metrics_handler_;

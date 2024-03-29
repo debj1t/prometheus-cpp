@@ -17,6 +17,7 @@
 #include "prometheus/metric_family.h"
 #include "prometheus/summary.h"
 #include "prometheus/text_serializer.h"
+#include "prometheus/http_server.h"
 
 #if CIVETWEB_VERSION_MAJOR < 1 || \
     (CIVETWEB_VERSION_MAJOR == 1 && CIVETWEB_VERSION_MINOR < 14)
@@ -96,6 +97,16 @@ static std::vector<Byte> GZipCompress(const std::string& input) {
 }
 #endif
 
+static ULONG WriteGetResponse(HANDLE hReqQueue, PHTTP_REQUEST pRequest,
+                                    const std::string& body) {
+   return prometheus::SendHttpResponse(
+        hReqQueue, 
+        pRequest, 
+        200,
+        PSTR("OK"),
+        PSTR("Hey! You hit the server \r\n")
+        );
+}
 static std::size_t WriteResponse(struct mg_connection* conn,
                                  const std::string& body) {
   mg_printf(conn,
@@ -145,7 +156,8 @@ void MetricsHandler::RemoveCollectable(
                       std::end(collectables_));
 }
 
-bool MetricsHandler::handleGet(CivetServer*, struct mg_connection* conn) {
+//bool MetricsHandler::handleGet(CivetServer*, struct mg_connection* conn) {
+ULONG MetricsHandler::handleGet(HANDLE hReqQueue, PHTTP_REQUEST pRequest) {
   auto start_time_of_request = std::chrono::steady_clock::now();
 
   std::vector<MetricFamily> metrics;
@@ -157,7 +169,8 @@ bool MetricsHandler::handleGet(CivetServer*, struct mg_connection* conn) {
 
   const TextSerializer serializer;
 
-  auto bodySize = WriteResponse(conn, serializer.Serialize(metrics));
+  //FixME: Should return the size of the body
+  auto bodySize = WriteGetResponse(hReqQueue, pRequest, serializer.Serialize(metrics));
 
   auto stop_time_of_request = std::chrono::steady_clock::now();
   auto duration = std::chrono::duration_cast<std::chrono::microseconds>(
@@ -166,7 +179,8 @@ bool MetricsHandler::handleGet(CivetServer*, struct mg_connection* conn) {
 
   bytes_transferred_.Increment(bodySize);
   num_scrapes_.Increment();
-  return true;
+//  return true;
+  return bodySize;
 }
 
 void MetricsHandler::CleanupStalePointers(

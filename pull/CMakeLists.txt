@@ -31,6 +31,7 @@ add_library(pull
   src/handler.h
   src/metrics_collector.cc
   src/metrics_collector.h
+  src/http_server.cpp
 )
 
 add_library(${PROJECT_NAME}::pull ALIAS pull)
