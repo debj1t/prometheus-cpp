@@ -6,7 +6,7 @@
 
 #include "CivetServer.h"
 #include "basic_auth.h"
-#include "handler.h"
+#include "prometheus/handler.h"
 #include "prometheus/collectable.h"
 #include "prometheus/registry.h"
 #include "prometheus/http_server.h"
@@ -37,7 +37,7 @@ class Endpoint {
   const std::wstring uri_;
   // registry for "meta" metrics about the endpoint itself
   std::shared_ptr<Registry> endpoint_registry_;
-  std::unique_ptr<MetricsHandler> metrics_handler_;
+  std::shared_ptr<MetricsHandler> metrics_handler_;
   std::unique_ptr<BasicAuthHandler> auth_handler_;
 };
 

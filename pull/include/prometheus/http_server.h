@@ -46,46 +46,58 @@
 
 #define FREE_MEM(ptr) HeapFree(GetProcessHeap(), 0, (ptr))
 
+class HttpServer;
+
+
+typedef struct ServerContext {
+    HANDLE server;
+    HANDLE hReqQueue;
+} serverContext, *pServerContext;
+
 namespace prometheus {
 //
 // Prototypes.
 //
 
+namespace detail {
 
-typedef int (*request_handler)(HANDLE hReqQueue, PHTTP_REQUEST pRequest);
+class MetricsHandler;
+
+typedef ULONG (MetricsHandler::*get_metrics_handler)(HANDLE hReqQueue, PHTTP_REQUEST pRequest);
+
+}
+//typedef int (*request_handler)(HANDLE hReqQueue, PHTTP_REQUEST pRequest);
  
 class RequestHandler
 {
   public:
+
+    RequestHandler(){};
 	virtual ~RequestHandler()
 	{
 	}
 
-	virtual ULONG handleGet(HANDLE hReqQueue, PHTTP_REQUEST pRequest);
+	//virtual ULONG handleGet(HANDLE hReqQueue, PHTTP_REQUEST pRequest);
+	ULONG handleGet(HANDLE hReqQueue, PHTTP_REQUEST pRequest);
+    ULONG (RequestHandler::*reqHandler_)(HANDLE, PHTTP_REQUEST);
 };
+
 
 class HttpServer {
 public:
-    HttpServer( std::vector<std::wstring> urls) {
+    HttpServer( std::vector<std::wstring> urls){
         urls_ = urls;
         SetupServer(urls);
-    }
-
-    ~HttpServer() {
-        // Cleanup
-        //HttpRemoveUrlFromUrlGroup(hUrlGroup, url, 0);
-        //HttpCloseUrlGroup(hUrlGroup);
-        //HttpCloseRequestQueue(hReqQueue);
     }
 
     std::wstring GetUrl() {
         return urls_[0];
     }
 
-    static void SetLastRequestContext(HANDLE hReqQueue, PHTTP_REQUEST pRequest) {
-        hReqQueue_ = hReqQueue;
-        pRequest_ = pRequest;
-    }
+   // void SetLastRequestContext(HANDLE hReqQueue, PHTTP_REQUEST pRequest) {
+   //     hReqQueue_ = hReqQueue;
+   //     pRequest_ = pRequest;
+   // }
 
     // virtual ULONG handleGet(HANDLE hReqQueue, PHTTP_REQUEST pRequest);
     /**
@@ -95,25 +107,52 @@ public:
 	 *
 	 * @return A vector of ports
 	 */
-    void addHandler(void* reqHandler) {
-        reqHandler_ = (RequestHandler*) reqHandler;
+//    void addHandler(ULONG (* reqHandler)(HANDLE, PHTTP_REQUEST)) {
+    void addHandler(detail::MetricsHandler* metricsInstance, detail::get_metrics_handler clientHandler) {
+        wprintf(L"HttpServer::addHandler\n");
+        metricsHandler = metricsInstance;    
+        getHandler = clientHandler;
+        wprintf(L"HttpServer::addHandler gethandler %p\n", getHandler);
+        wprintf(L"HttpServer::addHandler clienthandler %p\n", clientHandler);
+        //wprintf(L"HttpServer::addHandler metrics gethandler %p\n", metricsInstance->getHandler);
+    }
+
+    void HttpCleanup();
+
+    ~HttpServer() {
+        HttpCleanup();
     }
 
 	//std::vector<int> getListeningPorts();
-    RequestHandler* GetReqHandler() {
-        return reqHandler_;
+    //ULONG (HANDLE, HTTP_REQUEST) GetReqHandler() {
+    //    return reqHandler_;
+    //}
+
+    HANDLE hReqQueue() {
+        return hReqQueue_;
     }
+
+    std::vector<std::wstring> urls() {
+        return urls_;
+    }
+    int  UrlAdded;
+    //ULONG (RequestHandler::*reqHandler_)(HANDLE, PHTTP_REQUEST);
+    //RequestHandler handler;
+    detail::get_metrics_handler getHandler;
+    detail::MetricsHandler* metricsHandler;
+    HANDLE hThread_;
+    pServerContext threadData_; 
 private:
     int SetupServer(std::vector<std::wstring> urls);
-    static HANDLE hReqQueue_;
+    HANDLE hReqQueue_;
     static PHTTP_REQUEST pRequest_;    
     std::vector<std::wstring> urls_;
-//    request_handler reqHandler_;
-    RequestHandler* reqHandler_;
 };
 
 
-    DWORD DoReceiveRequests(HANDLE hReqQueue, HttpServer* server);
+
+    //DWORD DoReceiveRequests(HANDLE hReqQueue, HttpServer* server);
+    DWORD DoReceiveRequests(LPVOID serverContext);
 
     DWORD
     SendHttpResponse(

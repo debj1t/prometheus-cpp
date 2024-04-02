@@ -51,8 +51,10 @@ class PROMETHEUS_CPP_PULL_EXPORT Exposer {
   detail::Endpoint& GetEndpointForUri(const std::string& uri);
   detail::Endpoint& GetEndpoint();
 
-  std::unique_ptr<HttpServer> server_;
-  std::unique_ptr<detail::Endpoint> endpoints_;
+  //std::unique_ptr<HttpServer> server_;
+  std::shared_ptr<HttpServer> server_;
+//  std::unique_ptr<detail::Endpoint> endpoints_;
+  std::shared_ptr<detail::Endpoint> endpoints_;
   std::mutex mutex_;
 };
 

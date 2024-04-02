@@ -1,10 +1,10 @@
 #include "endpoint.h"
-#include "handler.h"
+#include "prometheus/handler.h"
 
 #include <utility>
 
 #include "basic_auth.h"
-#include "handler.h"
+#include "prometheus/handler.h"
 #include "prometheus/detail/future_std.h"
 
 namespace prometheus {
@@ -15,9 +15,13 @@ Endpoint::Endpoint(HttpServer& server, std::wstring uri)
       uri_(std::move(uri)),
       endpoint_registry_(std::make_shared<Registry>()),
       metrics_handler_(
-          detail::make_unique<MetricsHandler>(*endpoint_registry_)) {
+          std::make_shared<MetricsHandler>(*endpoint_registry_)) {
+          //detail::make_unique<MetricsHandler>(*endpoint_registry_)) {
   RegisterCollectable(endpoint_registry_);
-  server_.addHandler(metrics_handler_.get());
+  //server_.addHandler(metrics_handler_.get());
+  //wprintf(L"MetricsHandler : %p\n", metrics_handler_);
+  wprintf(L"MetricsHandler Get : %p\n", metrics_handler_.get());
+  server_.addHandler(metrics_handler_.get(), (metrics_handler_.get()->getHandler));
 }
 
 Endpoint::~Endpoint() {

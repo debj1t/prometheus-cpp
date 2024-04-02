@@ -1,4 +1,4 @@
-#include "handler.h"
+#include "prometheus/handler.h"
 
 #include <algorithm>
 #include <chrono>
@@ -99,12 +99,14 @@ static std::vector<Byte> GZipCompress(const std::string& input) {
 
 static ULONG WriteGetResponse(HANDLE hReqQueue, PHTTP_REQUEST pRequest,
                                     const std::string& body) {
+   PSTR body_ = (PSTR)body.c_str();
    return prometheus::SendHttpResponse(
         hReqQueue, 
         pRequest, 
         200,
         PSTR("OK"),
-        PSTR("Hey! You hit the server \r\n")
+        body_
+        //PSTR("Hey! You hit the server \r\n")
         );
 }
 static std::size_t WriteResponse(struct mg_connection* conn,
@@ -158,6 +160,8 @@ void MetricsHandler::RemoveCollectable(
 
 //bool MetricsHandler::handleGet(CivetServer*, struct mg_connection* conn) {
 ULONG MetricsHandler::handleGet(HANDLE hReqQueue, PHTTP_REQUEST pRequest) {
+//ULONG handleGet(HANDLE hReqQueue, PHTTP_REQUEST pRequest) {
+  wprintf(L"Metrics Handler GET called\n");
   auto start_time_of_request = std::chrono::steady_clock::now();
 
   std::vector<MetricFamily> metrics;
@@ -170,7 +174,9 @@ ULONG MetricsHandler::handleGet(HANDLE hReqQueue, PHTTP_REQUEST pRequest) {
   const TextSerializer serializer;
 
   //FixME: Should return the size of the body
-  auto bodySize = WriteGetResponse(hReqQueue, pRequest, serializer.Serialize(metrics));
+  auto body = serializer.Serialize(metrics);
+  auto bodySize = WriteGetResponse(hReqQueue, pRequest, body);
+  //auto bodySize = body.size();
 
   auto stop_time_of_request = std::chrono::steady_clock::now();
   auto duration = std::chrono::duration_cast<std::chrono::microseconds>(
@@ -179,7 +185,7 @@ ULONG MetricsHandler::handleGet(HANDLE hReqQueue, PHTTP_REQUEST pRequest) {
 
   bytes_transferred_.Increment(bodySize);
   num_scrapes_.Increment();
-//  return true;
+  //return true;
   return bodySize;
 }
 

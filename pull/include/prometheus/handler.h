@@ -12,7 +12,6 @@
 #include "prometheus/summary.h"
 #include "prometheus/http_server.h"
 
-
 namespace prometheus {
 namespace detail {
 class MetricsHandler;

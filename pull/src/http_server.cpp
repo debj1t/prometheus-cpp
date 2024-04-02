@@ -1,5 +1,6 @@
 #pragma once
 #include "prometheus/http_server.h"
+#include "prometheus/handler.h"
 #include <synchapi.h>
 
 #ifndef UNUSED_PARAMETER
@@ -8,19 +9,56 @@
 
 namespace prometheus {
 
-ULONG
-RequestHandler::handleGet(HANDLE hReqQueue, PHTTP_REQUEST pRequest)
+//ULONG
+//RequestHandler::handleGet(HANDLE hReqQueue, PHTTP_REQUEST pRequest)
+//{
+//	UNUSED_PARAMETER(hReqQueue);
+//	UNUSED_PARAMETER(pRequest);
+//	return 0;
+//}
+void
+HttpServer::HttpCleanup()
 {
-	UNUSED_PARAMETER(hReqQueue);
-	UNUSED_PARAMETER(pRequest);
-	return 0;
+    HANDLE reqQueue = hReqQueue();
+    std::vector<std::wstring> urllist = urls();
+    //
+    // Call HttpRemoveUrl for all added URLs.
+    //
+    for(int i=0; i<UrlAdded; i++) {
+        HttpRemoveUrl(
+              reqQueue,     // Req Queue
+              urllist[i].c_str()        // Fully qualified URL
+              );
+    }
+
+    //
+    // Close the Request Queue handle.
+    //
+    if(NULL != reqQueue) {
+        CloseHandle(reqQueue);
+        reqQueue = NULL;
+    }
+
+    // 
+    // Call HttpTerminate.
+    //
+    HttpTerminate(HTTP_INITIALIZE_SERVER, NULL);
+    //WaitForSingleObject(hThread_, INFINITE);
+    //wprintf(L"Server thread signalled\n");
+
+    if (hThread_ != NULL) {
+        CloseHandle(hThread_);
+    }
+    if(threadData_ != NULL) {
+        HeapFree(GetProcessHeap(), 0, threadData_);
+    }
+	return;
 }
 
 int HttpServer::SetupServer(std::vector<std::wstring> urls)
 {
     ULONG           retCode;
     HANDLE          hReqQueue      = NULL;
-    int             UrlAdded       = 0;
     HTTPAPI_VERSION HttpApiVersion = HTTPAPI_VERSION_1;
     
     //if (argc < 2)
@@ -55,7 +93,8 @@ int HttpServer::SetupServer(std::vector<std::wstring> urls)
     if (retCode != NO_ERROR)
     {    
         wprintf(L"HttpCreateHttpHandle failed with %lu \n", retCode);
-        goto CleanUp;
+        HttpCleanup();
+        return retCode;
     }
 
     //
@@ -75,13 +114,11 @@ int HttpServer::SetupServer(std::vector<std::wstring> urls)
                     NULL          // Reserved
                     );
 
-        if (retCode != NO_ERROR)
-        {
+        if (retCode != NO_ERROR) {
             wprintf(L"HttpAddUrl failed with %lu \n", retCode);
-            goto CleanUp;
-        }
-        else
-        {
+            HttpCleanup();
+            return retCode;
+        } else {
             //
             // Track the currently added URLs.
             //
@@ -89,33 +126,27 @@ int HttpServer::SetupServer(std::vector<std::wstring> urls)
         }
     }
 
-    DoReceiveRequests(hReqQueue, this);
+    // Spawn a thread for the server loop
+    threadData_ = (pServerContext)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(serverContext));
+    if(threadData_ != NULL) {
+        threadData_->hReqQueue = hReqQueue;
+        //threadData_->server = reinterpret_cast<HttpServer*>(this);
+        threadData_->server = reinterpret_cast<HttpServer*>(this);
 
-    CleanUp:
+        wprintf(L"Spawning server thread\n");
+        hThread_ = CreateThread(
+            NULL,
+            0,
+            DoReceiveRequests,
+            threadData_,
+            0,
+            NULL
+        );
 
-    //
-    // Call HttpRemoveUrl for all added URLs.
-    //
-    for(int i=0; i<UrlAdded; i++)
-    {
-        HttpRemoveUrl(
-              hReqQueue,     // Req Queue
-              urls[i].c_str()        // Fully qualified URL
-              );
+        wprintf(L"Spawned server thread\n");
+
     }
-
-    //
-    // Close the Request Queue handle.
-    //
-    if(hReqQueue)
-    {
-        CloseHandle(hReqQueue);
-    }
-
-    // 
-    // Call HttpTerminate.
-    //
-    HttpTerminate(HTTP_INITIALIZE_SERVER, NULL);
+    //DoReceiveRequests(hReqQueue, this);
 
     return retCode;
 }
@@ -133,9 +164,10 @@ Return Value:
     Success/Failure.
 
 --*******************************************************************/
-DWORD DoReceiveRequests(
-    __in HANDLE hReqQueue,
-    __in HttpServer* server
+DWORD WINAPI DoReceiveRequests(
+    __in LPVOID serverContext
+    //__in HANDLE hReqQueue,
+    //__in HttpServer* server
     )
 {
     ULONG              result;
@@ -145,6 +177,9 @@ DWORD DoReceiveRequests(
     PCHAR              pRequestBuffer;
     ULONG              RequestBufferLength;
 
+    pServerContext context = (pServerContext)serverContext;
+    HANDLE hReqQueue = context->hReqQueue;
+    HttpServer* server = reinterpret_cast<HttpServer*>(context->server);
     //
     // Allocate a 2 KB buffer. This size should work for most 
     // requests. The buffer size can be increased if required. Space
@@ -167,9 +202,9 @@ DWORD DoReceiveRequests(
 
     HTTP_SET_NULL_ID( &requestId );
 
-    LPOVERLAPPED myOverLapped = (LPOVERLAPPED) ALLOC_MEM( sizeof(OVERLAPPED) );
-    memset(myOverLapped, 0, sizeof(OVERLAPPED));
-    myOverLapped->hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
+    //LPOVERLAPPED myOverLapped = (LPOVERLAPPED) ALLOC_MEM( sizeof(OVERLAPPED) );
+    //memset(myOverLapped, 0, sizeof(OVERLAPPED));
+    //myOverLapped->hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
 
     for(;;)
     {
@@ -204,10 +239,17 @@ DWORD DoReceiveRequests(
 
                         //SetLastRequestContext(hReqQueue, pRequest);
 //                        request_handler handler = server->GetReqHandler();
-                        auto handler = server->GetReqHandler();
-                        if (handler != NULL)
-                            result = handler->handleGet(hReqQueue, pRequest);
-                        else
+                        //auto getHandle = server->metricsHandler->(*(server->getHandler));
+                        if (true) {
+                            //wprintf(L"Got handler %p\n", (server->metricsHandler->*(server->getHandler())));
+                            //result = (server->metricsHandler->*(server->getHandler()))(hReqQueue, pRequest);
+                            wprintf(L"Got handler 1 %p\n", ((server->getHandler)));
+                            wprintf(L"Got handler 2 %p\n", (server->metricsHandler->getHandler));
+                            wprintf(L"Got Handler 3 %lu\n", (server->metricsHandler->*(server->getHandler))(hReqQueue, pRequest));
+                            wprintf(L"Get handler Result %lu\n", result);
+                            //result = (server->metricsHandler->getHandler)(hReqQueue, pRequest));
+                            //result = (server->getHandler)(hReqQueue, pRequest));
+                        } else {
                             result = prometheus::SendHttpResponse(
                                      hReqQueue, 
                                      pRequest, 
@@ -215,6 +257,7 @@ DWORD DoReceiveRequests(
                                      PSTR("OK"),
                                      PSTR("Hey! You hit the OLD server \r\n")
                                      );
+                        }
                     }
                     break;
 

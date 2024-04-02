@@ -26,7 +26,7 @@ class HttpServer;
 //}
 
 //Exposer::Exposer(const std::vector<std::wstring>& urls) : server_(detail::make_unique<HttpServer>(urls)) { 
-Exposer::Exposer(const std::vector<std::wstring>& urls) : server_(detail::make_unique<HttpServer>(urls)) { 
+Exposer::Exposer(const std::vector<std::wstring>& urls) : server_(std::make_shared<HttpServer>(urls)) { 
 }
 
 Exposer::~Exposer() = default;
@@ -87,7 +87,7 @@ detail::Endpoint& Exposer::GetEndpoint() {
   if (endpoints_) {
     return *endpoints_.get();
   }
-  endpoints_ = detail::make_unique<detail::Endpoint>(*server_, server_.get()->GetUrl());
+  endpoints_ = std::make_shared<detail::Endpoint>(*server_, server_.get()->GetUrl());
   return *endpoints_.get();
 }
 

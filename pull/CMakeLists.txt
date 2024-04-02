@@ -28,7 +28,6 @@ add_library(pull
   src/endpoint.h
   src/exposer.cc
   src/handler.cc
-  src/handler.h
   src/metrics_collector.cc
   src/metrics_collector.h
   src/http_server.cpp
